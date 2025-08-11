@@ -1,0 +1,140 @@
+/* style.css */
+
+body {
+  font-family: 'Segoe UI', sans-serif;
+  margin: 0;
+  padding: 0 15px 70px;
+  background-color: #f7f7f7;
+  color: #333;
+}
+
+h2 {
+  color: #222;
+  margin-top: 25px;
+}
+
+ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+li {
+  background: white;
+  padding: 15px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+form {
+  margin: 10px 0;
+}
+
+input[type="date"],
+select,
+textarea {
+  padding: 5px 8px;
+  margin: 5px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+}
+
+button,
+input[type="submit"] {
+  background-color: #4CAF50;
+  color: white;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button:hover,
+input[type="submit"]:hover {
+  background-color: #45a049;
+}
+
+.navbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: #eaeaea;
+  padding: 10px;
+  text-align: center;
+  border-top: 1px solid #ccc;
+  box-shadow: 0 -2px 5px rgba(0,0,0,0.05);
+}
+
+.navbar a {
+  margin: 0 10px;
+  text-decoration: none;
+  color: #444;
+  font-weight: 500;
+}
+
+.navbar a:hover {
+  color: #222;
+}
+
+.quick-filters a {
+  margin-right: 10px;
+  padding: 5px 10px;
+  background: #e0e0e0;
+  border-radius: 5px;
+  text-decoration: none;
+  color: #333;
+}
+
+.quick-filters a:hover {
+  background: #ccc;
+}
+
+.dashboard-wrapper {
+  background: #f7f9fb;
+  min-height: calc(100vh - 70px); /* minus navbar height */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+}
+
+.dashboard-card {
+  background: white;
+  padding: 2rem 3rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  max-width: 500px;
+  width: 100%;
+}
+
+.dashboard-card .logo {
+  max-height: 60px;
+  margin-bottom: 1rem;
+}
+
+.welcome-text {
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.sub-text {
+  color: #6c757d;
+  margin-bottom: 2rem;
+}
+
+.score-circle {
+  width: 120px;
+  height: 120px;
+  background: linear-gradient(135deg, #6dd5ed, #2193b0);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin: 0 auto;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}

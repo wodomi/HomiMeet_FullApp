@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Leaderboard{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Leaderboard - Group {{ group_id }}</h2>
+  <h2>Leaderboard - Group {{ group_id }}</h2>
+<form method="get">
+    <input type="hidden" name="group_id" value="{{ group_id }}">
+    Sort by:
+    <select name="order" onchange="this.form.submit()">
+        <option value="desc" {% if order == 'desc' %}selected{% endif %}>Highest First</option>
+        <option value="asc" {% if order == 'asc' %}selected{% endif %}>Lowest First</option>
+    </select>
+</form>
+<br>
+
+  {% if scores %}
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Username</th>
+        <th>Total Score</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in scores %}
+      <tr>
+        <td>{{ row.username }}</td>
+        <td>{{ row.total_score }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>No data available for this group yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

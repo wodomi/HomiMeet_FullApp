@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}My Scores{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>📊 My Punctuality Scores</h2>
+  {% if logs %}
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>Location</th>
+          <th>Scheduled Time</th>
+          <th>Status</th>
+          <th>Score</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in logs %}
+        <tr>
+          <td>{{ row.location }}</td>
+          <td>{{ row.scheduled_time }}</td>
+          <td>{{ row.status }}</td>
+          <td>{{ row.score }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No score logs yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

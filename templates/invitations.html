@@ -1,0 +1,489 @@
+{% extends 'base.html' %}
+{% block title %}Invitations{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root{
+    --bg-start: #e6f8ff;
+    --bg-end: #bde9f7;
+    --card-bg: #ffffff;
+    --muted: #6c757d;
+    --accent: #0d94d6;
+    --success: #28a745;
+    --danger: #dc3545;
+    --radius: 12px;
+    --shadow: 0 8px 24px rgba(13, 20, 30, 0.08);
+  }
+
+  body { background: linear-gradient(180deg,var(--bg-start),var(--bg-end)); min-height:100vh; margin:0; font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial; }
+  .container-xl { max-width:1200px; margin: 2.25rem auto; padding: 0 1.25rem; }
+
+  .page-header {
+    padding: 1.25rem 1.25rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    display:flex;
+    gap:1rem;
+    align-items:center;
+    background: linear-gradient(90deg, rgba(13,148,214,0.12), rgba(13,148,214,0.06));
+    box-shadow: var(--shadow);
+  }
+  .page-header .title { font-size:1.6rem; font-weight:700; color:#0b2f3a; margin:0; }
+  .page-header .subtitle { color:var(--muted); margin:0; font-size:.95rem; }
+
+  /* Pending invites full-width slab */
+  .card-slab {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    box-shadow: var(--shadow);
+    margin-bottom: 1.5rem;
+  }
+  .card-slab .section-header { display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom: 0.75rem; }
+  .section-title { font-size:1.1rem; color:#11303a; font-weight:700; margin:0; }
+  .small-muted { color:var(--muted); font-size:.95rem; }
+
+  /* Invite list (full width, more readable) */
+  .invite-list { display:flex; flex-direction:column; gap:1rem; max-height:54vh; overflow:auto; padding-right:.25rem; }
+  .invite-item {
+    display:grid;
+    grid-template-columns: 320px 1fr 180px;
+    gap: 1rem;
+    align-items:center;
+    padding: .85rem;
+    border-radius:10px;
+    background: linear-gradient(180deg,#ffffff,#fbfdff);
+    border: 1px solid rgba(10,10,10,.03);
+  }
+  .invite-thumb { width:100%; height:180px; border-radius:8px; overflow:hidden; background:#f3f7f9; display:flex; align-items:center; justify-content:center; }
+  .invite-meta { min-width:0; }
+  .invite-meta .loc { font-weight:700; color:#0b3944; font-size:1rem; margin-bottom:.25rem; }
+  .invite-meta .time { color:var(--muted); font-size:.95rem; margin-bottom:.5rem; }
+  .invite-desc { color:#334; font-size:.95rem; margin-bottom:.5rem; }
+
+  .invite-actions { display:flex; flex-direction:column; gap:.5rem; align-items:stretch; }
+  .btn-accept { background:var(--success); color:#fff; border-radius:8px; border:none; padding:.55rem .6rem; cursor:pointer; font-weight:600; }
+  .btn-accept:hover { opacity:.95; }
+  .btn-decline { background:var(--danger); color:#fff; border-radius:8px; border:none; padding:.55rem .6rem; cursor:pointer; font-weight:600; }
+  .btn-decline:hover { opacity:.95; }
+
+  /* Create/send content below the pending slab */
+  .content {
+    display:grid;
+    grid-template-columns: 1fr 420px;
+    gap: 1.25rem;
+  }
+  .form-card {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    box-shadow: var(--shadow);
+  }
+
+  /* Form and map UI */
+  label.form-label { font-weight:600; color:#0b3944; font-size:.95rem; display:block; margin-bottom:.5rem; }
+  .chip { display:inline-flex; align-items:center; gap:.5rem; padding:.25rem .5rem; border-radius:999px; background:#eef6fb; color:#0b3944; cursor:default; }
+  .chip .remove { margin-left:.25rem; font-weight:700; cursor:pointer; opacity:.8; }
+  #userSuggestions, #placeSuggestions { position:absolute; z-index:1200; max-height:220px; overflow:auto; width:100%; background:#fff; border:1px solid rgba(0,0,0,.08); border-radius:6px; display:none; box-shadow:0 8px 20px rgba(11,55,64,.06); }
+  .list-group-item-action { cursor:pointer; }
+  .map-container { height:260px; border-radius:8px; overflow:hidden; border:1px solid rgba(10,10,10,.04); }
+  .map-toggle .btn.active { background:var(--accent); color:#fff; border-color:transparent; }
+
+  input.form-control, textarea.form-control, select.form-select { width:100%; padding:.6rem; border-radius:8px; border:1px solid rgba(0,0,0,.08); }
+
+  @media (max-width:1100px) {
+    .invite-item { grid-template-columns: 260px 1fr 140px; }
+    .invite-thumb { height:150px; }
+  }
+  @media (max-width:900px) {
+    .content { grid-template-columns: 1fr; }
+    .invite-item { grid-template-columns: 1fr; grid-auto-rows: auto; }
+    .invite-thumb { height:200px; }
+    .invite-actions { flex-direction:row; justify-content:flex-end; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-xl">
+  <div class="page-header">
+    <div style="font-size:1.9rem">📨</div>
+    <div>
+      <p class="title">Invitations</p>
+      <p class="subtitle">Manage pending invites, preview locations, and send invitations.</p>
+    </div>
+  </div>
+
+  <!-- PENDING: full-width, top -->
+  <div class="card-slab" aria-live="polite">
+    <div class="section-header">
+      <div>
+        <h2 class="section-title">Pending Invitations</h2>
+        <div class="small-muted">Respond or preview each meetup location</div>
+      </div>
+      <div class="small-muted">{{ invitations|length }} pending</div>
+    </div>
+
+    {% if invitations %}
+      <div class="invite-list" id="pendingInvites">
+        {% for invite in invitations %}
+        <div class="invite-item" id="invite-card-{{ invite.invite_id }}">
+          <div class="invite-thumb" aria-hidden="true">
+            {% if invite.latitude is defined and invite.longitude is defined and invite.latitude and invite.longitude %}
+              <iframe width="100%" height="100%" style="border:0" loading="lazy"
+                src="https://www.google.com/maps?q={{ invite.latitude }},{{ invite.longitude }}&z=15&output=embed"></iframe>
+            {% else %}
+              <iframe width="100%" height="100%" style="border:0" loading="lazy"
+                src="https://www.google.com/maps?q={{ invite.location|urlencode }}&z=13&output=embed"></iframe>
+            {% endif %}
+          </div>
+
+          <div class="invite-meta">
+            <div class="loc">📍 {{ invite.location }}</div>
+            <div class="time">🕒 {{ invite.scheduled_time }} — from <strong>{{ invite.sender_username }}</strong></div>
+            {% if invite.description %}
+              <div class="invite-desc">{{ invite.description }}</div>
+            {% endif %}
+            {% if invite.notes %}
+              <div class="small-muted">{{ invite.notes }}</div>
+            {% endif %}
+          </div>
+
+          <div class="invite-actions">
+            <button class="btn-accept respond-btn" data-invite-id="{{ invite.invite_id }}" data-action="accept">✅ Accept</button>
+            <button class="btn-decline respond-btn" data-invite-id="{{ invite.invite_id }}" data-action="decline">❌ Decline</button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="small-muted">You have no pending invitations.</div>
+    {% endif %}
+  </div>
+
+  <!-- CREATE + SEND: below pending -->
+  <div class="content" aria-label="Create and send invites">
+    <div class="form-card">
+      <h3 class="section-title">✉️ Create Meetup & Send Invitations</h3>
+
+      <form id="createInviteForm" method="POST" action="{{ url_for('create_invitation') }}">
+        <div style="margin-bottom: .75rem;">
+          <label class="form-label">Title (optional)</label>
+          <input name="title" id="meetupTitle" class="form-control" placeholder="Meetup title (optional)">
+        </div>
+
+        <div style="margin-bottom: .75rem;">
+          <label class="form-label">Description (optional)</label>
+          <textarea name="description" id="meetupDesc" class="form-control" rows="2" placeholder="Short description (optional)"></textarea>
+        </div>
+
+        <div style="display:flex; gap:.75rem; margin-bottom:.75rem;">
+          <div style="flex:1;">
+            <label class="form-label">Scheduled Time</label>
+            <input type="datetime-local" name="scheduled_time" id="meetupTime" class="form-control">
+          </div>
+          <div style="flex:1;">
+            <label class="form-label">Or pick an existing meetup</label>
+            <select id="meetupSelect" name="meetup_id" class="form-select">
+              <option value="">-- Create new meetup (use fields above) --</option>
+              {% for m in meetups %}
+                <option value="{{ m.id }}" data-lat="{{ m.lat if m.lat is defined else '' }}" data-lng="{{ m.lng if m.lng is defined else '' }}">{{ m.location }} — {{ m.scheduled_time }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="mb-3 position-relative" style="margin-bottom:.75rem;">
+          <label class="form-label">Invite People (type to search)</label>
+          <input id="userSearch" class="form-control" placeholder="Search users... (e.g. jar → jared)">
+          <div id="userSuggestions" class="list-group mt-1"></div>
+          <div id="selectedUsers" class="mt-2 d-flex flex-wrap gap-2"></div>
+          <input type="hidden" name="user_ids" id="user_ids">
+        </div>
+
+        <div style="margin-bottom:.75rem;">
+          <label class="form-label">Map Mode</label>
+          <div class="map-toggle mb-2">
+            <button type="button" class="btn btn-outline-primary me-2 active" id="btnHaversine">🧭 Haversine</button>
+            <button type="button" class="btn btn-outline-secondary" id="btnGoogle">🗺️ Google</button>
+          </div>
+        </div>
+
+        <div class="mb-3 position-relative" style="margin-bottom:.75rem;">
+          <label class="form-label">Search place (autocomplete)</label>
+          <input id="placeSearch" class="form-control" placeholder="Search place (type to autocomplete)">
+          <div id="placeSuggestions" class="list-group mt-1"></div>
+        </div>
+
+        <div id="haversine_mode" class="mb-3">
+          <div id="haversineMap" class="map-container"></div>
+        </div>
+        <div id="google_mode" class="mb-3" style="display:none;">
+          <div id="googleMap" class="map-container"></div>
+        </div>
+
+        <input type="hidden" name="lat" id="lat">
+        <input type="hidden" name="lng" id="lng">
+
+        <div style="display:flex; gap:.6rem; margin-top:.6rem;">
+          <button type="submit" class="btn btn-primary" style="flex:1; padding:.6rem; border-radius:8px; background:var(--accent); color:#fff; border:none;">📤 Create & Send Invitations</button>
+          <button type="button" id="previewBtn" class="btn btn-outline-secondary" style="padding:.6rem; border-radius:8px; border:1px solid rgba(0,0,0,.08);">Preview</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- right column is intentionally kept narrow for more focus on form controls -->
+    <div class="form-card">
+      <h3 class="section-title">Quick Tips</h3>
+      <p class="small-muted">Select a meetup or set coordinates, then choose users to invite. Click Preview to center the map on the chosen location.</p>
+      <hr>
+      <p class="small-muted"><strong>Tip:</strong> use the Haversine map to pick precise coordinates, or Google mode for autocomplete addresses.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- Google Maps + Places -->
+<script async defer src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places&callback=initGoogleComponents"></script>
+
+<script>
+/* ===== server-provided data (unchanged) ===== */
+const ALL_USERS = JSON.parse('{{ all_users|tojson|safe }}');      // expects {id, username, ...}
+const EXISTING_MEETUPS = JSON.parse('{{ meetups|tojson|safe }}');
+/* =========================================== */
+
+/* ---- user multi-select ---- */
+const userSearch = document.getElementById('userSearch');
+const userSuggestions = document.getElementById('userSuggestions');
+const selectedUsersDiv = document.getElementById('selectedUsers');
+const userIdsInput = document.getElementById('user_ids');
+let selectedUserIds = [];
+
+function renderSelectedChips(){
+  selectedUsersDiv.innerHTML = '';
+  selectedUserIds.forEach(id => {
+    const user = ALL_USERS.find(u => String(u.id) === String(id));
+    if (!user) return;
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.innerHTML = `${user.username} <span class="remove">✕</span>`;
+    chip.querySelector('.remove').onclick = () => {
+      selectedUserIds = selectedUserIds.filter(x => String(x)!==String(id));
+      userIdsInput.value = JSON.stringify(selectedUserIds);
+      renderSelectedChips();
+    };
+    selectedUsersDiv.appendChild(chip);
+  });
+  userIdsInput.value = JSON.stringify(selectedUserIds);
+}
+
+function showUserSuggestions(query) {
+  userSuggestions.innerHTML = '';
+  if (!query) { userSuggestions.style.display = 'none'; return; }
+  const q = query.toLowerCase();
+  const matches = ALL_USERS.filter(u => u.username && u.username.toLowerCase().includes(q) && !selectedUserIds.includes(String(u.id))).slice(0,10);
+  matches.forEach(u => {
+    const btn = document.createElement('button');
+    btn.type='button';
+    btn.className='list-group-item list-group-item-action';
+    btn.textContent = u.username;
+    btn.onclick = () => {
+      selectedUserIds.push(String(u.id));
+      renderSelectedChips();
+      userSuggestions.style.display='none';
+      userSearch.value='';
+    };
+    userSuggestions.appendChild(btn);
+  });
+  userSuggestions.style.display = matches.length ? 'block' : 'none';
+}
+
+userSearch.addEventListener('input', (e) => showUserSuggestions(e.target.value));
+document.addEventListener('click', (e) => { if (!userSuggestions.contains(e.target) && e.target !== userSearch) userSuggestions.style.display='none'; });
+
+/* ---- Map & place autocomplete toggles ---- */
+const btnHaversine = document.getElementById('btnHaversine');
+const btnGoogle = document.getElementById('btnGoogle');
+const haversineMode = document.getElementById('haversine_mode');
+const googleMode = document.getElementById('google_mode');
+const placeSearch = document.getElementById('placeSearch');
+const placeSuggestions = document.getElementById('placeSuggestions');
+
+btnHaversine.addEventListener('click', () => {
+  btnHaversine.classList.add('active');
+  btnGoogle.classList.remove('active');
+  haversineMode.style.display = 'block';
+  googleMode.style.display = 'none';
+  setTimeout(()=>{ if (window.haversineMap && window.haversineMap.invalidateSize) window.haversineMap.invalidateSize(); }, 250);
+});
+btnGoogle.addEventListener('click', () => {
+  btnGoogle.classList.add('active');
+  btnHaversine.classList.remove('active');
+  haversineMode.style.display = 'none';
+  googleMode.style.display = 'block';
+  setTimeout(()=> {
+    if (window.googleMap && google && google.maps) {
+      google.maps.event.trigger(window.googleMap, 'resize');
+      const lat = parseFloat(document.getElementById('lat').value), lng = parseFloat(document.getElementById('lng').value);
+      if (!isNaN(lat) && !isNaN(lng)) window.googleMap.setCenter({lat, lng});
+    }
+  }, 300);
+});
+
+/* Initialize Leaflet map */
+window.addEventListener('DOMContentLoaded', () => {
+  try {
+    window.haversineMap = L.map('haversineMap').setView([8.228,124.245], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(window.haversineMap);
+  } catch(e){ console.warn('Leaflet init failed', e); }
+
+  window.havMarker = null;
+  if (window.haversineMap && window.haversineMap.on) {
+    window.haversineMap.on('click', function(e){
+      if (window.havMarker) window.haversineMap.removeLayer(window.havMarker);
+      window.havMarker = L.marker(e.latlng).addTo(window.haversineMap);
+      document.getElementById('lat').value = e.latlng.lat;
+      document.getElementById('lng').value = e.latlng.lng;
+    });
+  }
+
+  // Nominatim for place search (haversine mode)
+  let nomTimeout = null;
+  placeSearch.addEventListener('input', (e) => {
+    const q = e.target.value.trim();
+    placeSuggestions.innerHTML = '';
+    if (nomTimeout) clearTimeout(nomTimeout);
+    nomTimeout = setTimeout(() => {
+      if (q.length < 2) { placeSuggestions.style.display='none'; return; }
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=8`)
+        .then(r => r.json())
+        .then(results => {
+          placeSuggestions.innerHTML = '';
+          results.forEach(res => {
+            const btn = document.createElement('button');
+            btn.type='button';
+            btn.className='list-group-item list-group-item-action';
+            btn.textContent = res.display_name;
+            btn.onclick = () => {
+              const lat = parseFloat(res.lat), lon = parseFloat(res.lon);
+              document.getElementById('lat').value = lat;
+              document.getElementById('lng').value = lon;
+              placeSearch.value = res.display_name;
+              placeSuggestions.style.display='none';
+              if (btnHaversine.classList.contains('active') && window.haversineMap) {
+                if (window.havMarker) window.haversineMap.removeLayer(window.havMarker);
+                window.havMarker = L.marker([lat, lon]).addTo(window.haversineMap);
+                window.haversineMap.setView([lat, lon], 14);
+              } else if (window.googleMap) {
+                const loc = new google.maps.LatLng(lat, lon);
+                if (window.googleMarker) window.googleMarker.setMap(null);
+                window.googleMarker = new google.maps.Marker({ position: loc, map: window.googleMap });
+                window.googleMap.setCenter(loc);
+                window.googleMap.setZoom(14);
+              }
+            };
+            placeSuggestions.appendChild(btn);
+          });
+          placeSuggestions.style.display = results.length ? 'block' : 'none';
+        }).catch(()=>{ placeSuggestions.style.display='none'; });
+    }, 250);
+  });
+  document.addEventListener('click', (e) => { if (!placeSuggestions.contains(e.target) && e.target !== placeSearch) placeSuggestions.style.display='none'; });
+});
+
+/* Google Places + map init (global callback) */
+window.initGoogleComponents = function() {
+  try {
+    const googleMapEl = document.getElementById('googleMap');
+    window.googleMap = new google.maps.Map(googleMapEl, { center: { lat:8.228, lng:124.245 }, zoom: 12 });
+    window.googleMarker = null;
+    const ac = new google.maps.places.Autocomplete(document.getElementById('placeSearch'), { fields: ['geometry','formatted_address','name'] });
+    ac.addListener('place_changed', () => {
+      const place = ac.getPlace();
+      if (!place.geometry) return;
+      const lat = place.geometry.location.lat(), lng = place.geometry.location.lng();
+      document.getElementById('lat').value = lat;
+      document.getElementById('lng').value = lng;
+      if (window.googleMarker) window.googleMarker.setMap(null);
+      window.googleMarker = new google.maps.Marker({ position: place.geometry.location, map: window.googleMap });
+      window.googleMap.setCenter(place.geometry.location);
+      window.googleMap.setZoom(14);
+    });
+  } catch(err) { console.warn('Google components failed to initialize:', err); }
+};
+
+/* Meetup select centers maps */
+document.getElementById('meetupSelect').addEventListener('change', function(){
+  const opt = this.options[this.selectedIndex];
+  const lat = opt.dataset.lat, lng = opt.dataset.lng;
+  if (lat && lng) {
+    document.getElementById('lat').value = lat;
+    document.getElementById('lng').value = lng;
+    const latf = parseFloat(lat), lngf = parseFloat(lng);
+    if (btnHaversine.classList.contains('active') && window.haversineMap) {
+      if (window.havMarker) window.haversineMap.removeLayer(window.havMarker);
+      window.havMarker = L.marker([latf, lngf]).addTo(window.haversineMap);
+      window.haversineMap.setView([latf, lngf], 14);
+    } else if (window.googleMap) {
+      const loc = new google.maps.LatLng(latf, lngf);
+      if (window.googleMarker) window.googleMarker.setMap(null);
+      window.googleMarker = new google.maps.Marker({ position: loc, map: window.googleMap });
+      window.googleMap.setCenter(loc);
+      window.googleMap.setZoom(14);
+    }
+  }
+});
+
+/* Preview centers map on chosen coords */
+document.getElementById('previewBtn').addEventListener('click', () => {
+  const lat = parseFloat(document.getElementById('lat').value);
+  const lng = parseFloat(document.getElementById('lng').value);
+  if (!lat || !lng) return alert('No coordinates selected yet.');
+  if (btnHaversine.classList.contains('active') && window.haversineMap) {
+    if (window.havMarker) window.haversineMap.removeLayer(window.havMarker);
+    window.havMarker = L.marker([lat, lng]).addTo(window.haversineMap);
+    window.haversineMap.setView([lat, lng], 14);
+  } else if (window.googleMap) {
+    const loc = new google.maps.LatLng(lat, lng);
+    if (window.googleMarker) window.googleMarker.setMap(null);
+    window.googleMarker = new google.maps.Marker({ position: loc, map: window.googleMap });
+    window.googleMap.setCenter(loc);
+    window.googleMap.setZoom(14);
+  }
+});
+
+/* Ensure hidden user_ids set on submit */
+document.getElementById('createInviteForm').addEventListener('submit', function(){
+  if (!userIdsInput.value) userIdsInput.value = JSON.stringify(selectedUserIds);
+});
+
+/* AJAX accept/decline with fade-out */
+document.querySelectorAll('.respond-btn').forEach(btn => {
+  btn.addEventListener('click', function(e){
+    e.preventDefault();
+    const inviteId = this.dataset.inviteId;
+    const action = this.dataset.action;
+    fetch('{{ url_for("respond_invite") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+      body: new URLSearchParams({ invite_id: inviteId, action: action })
+    }).then(resp => {
+      if (resp.ok) {
+        const card = document.getElementById('invite-card-' + inviteId);
+        if (card) {
+          card.style.transition = 'opacity .28s, transform .28s';
+          card.style.opacity = '0';
+          card.style.transform = 'translateY(-10px)';
+          setTimeout(()=> card.remove(), 320);
+        }
+      } else {
+        resp.text().then(t => alert('Failed: ' + t));
+      }
+    }).catch(err => alert('Network error'));
+  });
+});
+</script>
+{% endblock %}

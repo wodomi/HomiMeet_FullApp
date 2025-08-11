@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign Up</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f4f6f8;
+      min-height: 100svh;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .auth-container {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+    }
+
+    h2 { margin-bottom: 1.25rem; color: #111827; font-size:1.25rem; }
+    form { margin-top: 0.25rem; }
+
+    input {
+      width: 100%;
+      padding: 0.8rem;
+      margin-bottom: 0.9rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 1rem;
+      background: #fff;
+    }
+    input:focus {
+      outline: none;
+      border-color: #6366f1;
+      box-shadow: 0 4px 14px rgba(99,102,241,0.12);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 0.85rem;
+      background: #4f46e5;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .btn:hover { background: #4338ca; }
+
+    p { margin-top: 1rem; font-size: 0.95rem; color: #4b5563; }
+    a { color: #4f46e5; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    @media (max-width: 380px) {
+      .auth-container { padding: 1rem; }
+      h2 { font-size: 1.05rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="auth-container" role="main" aria-labelledby="auth-title">
+    <h2 id="auth-title">Sign Up</h2>
+
+    <form method="POST" novalidate>
+      <input type="text" name="username" placeholder="Username" required autocomplete="username">
+      <input type="password" name="password" placeholder="Password" required autocomplete="new-password">
+      <button class="btn" type="submit">Sign Up</button>
+    </form>
+
+    <p>Already have an account? <a href="{{ url_for('login') }}">Log in</a></p>
+  </div>
+</body>
+</html>

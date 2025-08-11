@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}HomiMeet{% endblock %}</title>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  {% block head %}{% endblock %}
+  <style>
+    /* small app-wide helper */
+    body { padding-bottom: 60px; }
+  </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm">
+  <div class="container">
+    <a class="navbar-brand d-flex align-items-center" href="{{ url_for('dashboard') }}">
+      <img src="{{ url_for('static', filename='images/homimeet_logo.png') }}" alt="HomiMeet Logo" height="40" class="me-2">
+      <span class="fw-bold text-primary">HomiMeet</span>
+    </a>
+    <div class="collapse navbar-collapse">
+      <ul class="navbar-nav ms-auto">
+        {% if current_user.is_authenticated %}
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('my_meetups') }}">My Meetups</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('invitations') }}">Invitations</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('logout') }}">Logout ({{ current_user.username }})</a></li>
+        {% else %}
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('login') }}">Login</a></li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>
+
+
+<main class="container my-3">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, msg in messages %}
+        <div class="alert alert-{{ 'info' if category=='message' else category }} alert-dismissible fade show" role="alert">
+          {{ msg }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</main>
+
+<!-- Location permission modal (will be shown on /my_meetups) -->
+<div class="modal fade" id="locationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form id="locationConsentForm">
+        <div class="modal-header">
+          <h5 class="modal-title">Share your location?</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>Would you like to share your location to enable ETA updates for meetups? Your location will be used only to compute ETA and shown as a relative ETA to other members.</p>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" value="" id="rememberLocationChoice">
+            <label class="form-check-label" for="rememberLocationChoice">Remember my choice on this device</label>
+          </div>
+          <div class="mt-2 text-muted small">You can stop sharing anytime from your browser.</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" id="declineLocationBtn" class="btn btn-secondary" data-bs-dismiss="modal">No, thanks</button>
+          <button type="submit" id="acceptLocationBtn" class="btn btn-primary">Share location</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% block scripts %}
+<!-- Bootstrap + dependencies -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+(function(){
+  // Only run location prompt on /my_meetups
+  if (typeof window === 'undefined') return;
+  const path = window.location.pathname || '';
+  if (path !== '/my_meetups') return;
+
+  const key = 'homi_share_location_choice_v1'; // localStorage key
+
+  // If user remembered choice, do not show modal again.
+  const saved = localStorage.getItem(key);
+  if (saved === 'decline') return;
+  if (saved === 'accept') {
+    startSharing(); // already accepted previously
+    return;
+  }
+
+  // Show bootstrap modal
+  const locModalEl = document.getElementById('locationModal');
+  const locModal = new bootstrap.Modal(locModalEl);
+  locModal.show();
+
+  const form = document.getElementById('locationConsentForm');
+  const rememberCheckbox = document.getElementById('rememberLocationChoice');
+  document.getElementById('declineLocationBtn').addEventListener('click', () => {
+    if (rememberCheckbox.checked) localStorage.setItem(key, 'decline');
+  });
+
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    if (rememberCheckbox.checked) localStorage.setItem(key, 'accept');
+    locModal.hide();
+    startSharing();
+  });
+
+  let watchId = null;
+  let periodicTimer = null;
+
+  function startSharing() {
+    // request a single immediate position and then watch/periodic updates
+    if (!navigator.geolocation) {
+      console.warn('Geolocation not supported');
+      return;
+    }
+
+    // helper to POST position to server
+    function postPos(lat, lng, accuracy) {
+      fetch('/update_location', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ lat: lat, lng: lng, accuracy: accuracy || null })
+      }).catch(err => console.warn('update_location failed', err));
+    }
+
+    // get one immediate fix
+    navigator.geolocation.getCurrentPosition(function(pos){
+      postPos(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+    }, function(err){
+      console.warn('Initial geolocation denied or failed', err);
+    }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 });
+
+    // watchPosition (updates when device moves)
+    try {
+      watchId = navigator.geolocation.watchPosition(function(pos){
+        postPos(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+      }, function(err){ console.warn('watchPosition error', err); }, { enableHighAccuracy: true, maximumAge: 5000 });
+    } catch (e) {
+      // fallback to periodic polling every 60s
+      periodicTimer = setInterval(function(){
+        navigator.geolocation.getCurrentPosition(function(pos){
+          postPos(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+        });
+      }, 60 * 1000);
+    }
+
+    // When the page unloads, stop watching
+    window.addEventListener('beforeunload', function(){
+      if (watchId !== null && navigator.geolocation.clearWatch) navigator.geolocation.clearWatch(watchId);
+      if (periodicTimer) clearInterval(periodicTimer);
+    });
+  }
+})();
+</script>
+{% endblock %}
+</body>
+</html>

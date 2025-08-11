@@ -1,0 +1,19 @@
+{
+    "sqltools.connections": [
+        {
+            "mysqlOptions": {
+                "authProtocol": "default",
+                "enableSsl": "Disabled"
+            },
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 3306,
+            "driver": "MySQL",
+            "name": "MySQL Local",
+            "database": "homimeet_db",
+            "username": "root",
+            "password": "8wuXwo95hrtpJDSDhRBkOK0scK18Xo-bYoV0ibqi82E",
+            "connectionTimeout": 30
+        }
+    ]
+}
