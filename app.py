@@ -13,6 +13,9 @@ from pathlib import Path
 
 load_dotenv()
 
+if os.path.exists(".env"):
+    load_dotenv()
+
 SECRET_KEY = os.getenv("SECRET_KEY")
 DB_HOST = os.getenv("DB_HOST")
 DB_USER = os.getenv("DB_USER")
@@ -38,7 +41,7 @@ if missing:
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET_KEY", "your_secret_key")
+app.secret_key = os.environ.get("SECRET_KEY", "dev_secret_key")
 bcrypt = Bcrypt(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -46,11 +49,10 @@ login_manager.init_app(app)
 # DB helpers
 def get_db_connection():
     return mysql.connector.connect(
-        host=DB_HOST,
-        user=DB_USER,
-        password=DB_PASS,
-        database=DB_NAME,
-        autocommit=False
+        host=os.environ.get("DB_HOST", "localhost"),
+        user=os.environ.get("DB_USER", "root"),
+        password=os.environ.get("DB_PASS", ""),
+        database=os.environ.get("DB_NAME", "homimeet_db")
     )
 
 def fetchall_dict(query, params=()):
@@ -93,9 +95,18 @@ def load_user(user_id):
     return None
 
 # Simple auth routes (login/signup)
-@app.route('/')
+@app.route("/")
 def home():
-    return redirect(url_for('login'))
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT NOW()")
+        current_time = cursor.fetchone()[0]
+        cursor.close()
+        conn.close()
+        return f"✅ Database connected! Server time: {current_time}"
+    except Exception as e:
+        return f"❌ DB Connection failed: {e}"
 
 @app.route('/signup', methods=['GET','POST'])
 def signup():
